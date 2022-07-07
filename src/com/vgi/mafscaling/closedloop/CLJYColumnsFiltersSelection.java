@@ -16,14 +16,17 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-package com.vgi.mafscaling;
+package com.vgi.mafscaling.closedloop;
+
+import com.vgi.mafscaling.ColumnsFiltersSelection;
+import com.vgi.mafscaling.Config;
 
 import java.awt.event.ActionEvent;
 
-public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
-    private boolean isPolfTableMap = false;
-    
-    public CLColumnsFiltersSelection(boolean isPolfTableMap) {
+public class CLJYColumnsFiltersSelection extends ColumnsFiltersSelection {
+    private final boolean isPolfTableMap;
+
+    public CLJYColumnsFiltersSelection(boolean isPolfTableMap) {
         this.isPolfTableMap = isPolfTableMap;
     }
     
@@ -36,7 +39,6 @@ public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
         addStockAFRColSelection();
         addClOlStatusColSelection();
         addTimeColSelection();
-        addIATColSelection();
         if (isPolfTableMap)
             addManifoldAbsolutePressureColSelection();
     }
@@ -48,8 +50,6 @@ public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
         maxMafVFilter.setText(String.valueOf(Config.getMafVMaximumValue()));
         addEngineLoadMinimumFilter();
         minEngineLoadFilter.setText(String.valueOf(Config.getLoadMinimumValue()));
-        addIATMaximumFilter();
-        maxIatFilter.setText(String.valueOf(Config.getIatMaximumValue()));
         addAFRMaximumFilter();
         maxAfrFilter.setText(String.valueOf(Config.getAfrMaximumValue()));
         addAFRMinimumFilter();
@@ -145,16 +145,6 @@ public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
         else
             Config.setTimeColumnName(value);
         
-        // Intake Air Temperature
-        value = iatName.getText().trim();
-        colName = iatLabelText;
-        if (value.isEmpty()) {
-            ret = false;
-            error.append("\"").append(colName).append("\" column must be specified\n");
-        }
-        else
-            Config.setIatColumnName(value);
-                
         // CL/OL Status
         value = clolStatusFilter.getValue().toString();
         colName = clolStatusLabelText;
@@ -163,7 +153,7 @@ public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
             error.append("\"").append(colName).append("\" value must be specified\n");
         }
         else
-            Config.setClOlStatusValue(Integer.valueOf(value));
+            Config.setClOlStatusValue(Integer.parseInt(value));
         
         if (isPolfTableMap) {
             // Manifold Absolute Pressure
@@ -178,23 +168,20 @@ public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
         }
         
         // Max MAF Voltage filter
-        Config.setMafVMaximumValue(Double.valueOf(maxMafVFilter.getText()));
+        Config.setMafVMaximumValue(Double.parseDouble(maxMafVFilter.getText()));
         
         // Engine Load filter
-        Config.setLoadMinimumValue(Double.valueOf(minEngineLoadFilter.getText()));
+        Config.setLoadMinimumValue(Double.parseDouble(minEngineLoadFilter.getText()));
         
         // Minimum Cell Hit Count Filter
-        Config.setCLMinCellHitCount(Integer.valueOf(minCellHitCountFilter.getText()));
-        
-        // IAT filter
-        Config.setIatMaximumValue(Double.valueOf(maxIatFilter.getText()));
+        Config.setCLMinCellHitCount(Integer.parseInt(minCellHitCountFilter.getText()));
         
         // AFR filters
-        Config.setAfrMaximumValue(Double.valueOf(maxAfrFilter.getText()));
-        Config.setAfrMinimumValue(Double.valueOf(minAfrFilter.getText()));
+        Config.setAfrMaximumValue(Double.parseDouble(maxAfrFilter.getText()));
+        Config.setAfrMinimumValue(Double.parseDouble(minAfrFilter.getText()));
         
         // dV/dt filter
-        Config.setDvDtMaximumValue(Double.valueOf(maxDvdtFilter.getText()));
+        Config.setDvDtMaximumValue(Double.parseDouble(maxDvdtFilter.getText()));
         
         return ret;
     }
@@ -206,8 +193,6 @@ public class CLColumnsFiltersSelection extends ColumnsFiltersSelection {
             clolStatusFilter.setValue(Integer.valueOf(Config.DefaultClOlStatusValue));
         else if ("minengload".equals(e.getActionCommand()))
             minEngineLoadFilter.setText(Config.DefaultLoadMinimum);
-        else if ("maxiat".equals(e.getActionCommand()))
-            maxIatFilter.setText(Config.DefaultIATMaximum);
         else if ("maxafr".equals(e.getActionCommand()))
             maxAfrFilter.setText(Config.DefaultAfrMaximum);
         else if ("minafr".equals(e.getActionCommand()))

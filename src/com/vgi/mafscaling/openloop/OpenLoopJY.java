@@ -16,48 +16,26 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-package com.vgi.mafscaling;
+package com.vgi.mafscaling.openloop;
 
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.ResourceBundle;
-import java.util.TreeMap;
+import com.vgi.mafscaling.*;
 
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JFileChooser;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.ListSelectionModel;
-import javax.swing.border.LineBorder;
-import javax.swing.table.DefaultTableModel;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.XYSeries;
 
-public class OpenLoop extends AMafScaling {
-    private static final long serialVersionUID = 2988105467764335997L;
-    private static final Logger logger = Logger.getLogger(OpenLoop.class);
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.io.*;
+import java.util.*;
+
+import javax.swing.*;
+import javax.swing.border.LineBorder;
+import javax.swing.table.DefaultTableModel;
+
+public class OpenLoopJY extends AMafScaling {
+    private static final Logger logger = Logger.getLogger(OpenLoopJY.class);
     private static final String SaveDataFileHeader = "[open_loop run data]";
     private static final String RunTableName = "Run ";
     private static final String Y2AxisName = "AFR Error (%)";
@@ -65,34 +43,35 @@ public class OpenLoop extends AMafScaling {
     private static final String runDataName = "AFR Error";
     private static final int RunCount = 10;
     private static final int RunRowsCount = 200;
-    
+
+    private int clValue = Config.getClOlStatusValue();
     private double minMafV = Config.getMafVMinimumValue();
     private double afrErrPrct = Config.getWidebandAfrErrorPercentValue();
     private double minWotEnrichment = Config.getWOTEnrichmentValue();
     private int wotPoint = Config.getWOTStationaryPointValue();
     private int afrRowOffset = Config.getWBO2RowOffset();
     private int skipRowsOnTransition = Config.getOLCLTransitionSkipRows();
-    
+
     private int logThtlAngleColIdx = -1;
-    private int logAfLearningColIdx = -1;
-    private int logAfCorrectionColIdx = -1;
     private int logMafvColIdx = -1;
     private int logAfrColIdx = -1;
     private int logRpmColIdx = -1;
     private int logLoadColIdx = -1;
     private int logMapColIdx = -1;
     private int logCommandedAfrColIdx = -1;
-    
+    private int logClOlStatusColIdx = -1;
+
     private JCheckBox checkBoxMafRpmData = null;
-    private ArrayList<Double> afrArray = new ArrayList<Double>();
-    private ArrayList<JTable> runTables = new ArrayList<JTable>();
-    private ArrayList<JButton> removeButtons = new ArrayList<JButton>();
+    private final ArrayList<Double> afrArray = new ArrayList<>();
+    private final ArrayList<JTable> runTables = new ArrayList<>();
+    private final ArrayList<JButton> removeButtons = new ArrayList<>();
     private GridBagLayout gbl_dataRunPanel = null;
     private GridBagConstraints gbc_run = null;
     JPanel dataRunPanel = null;
 
-    public OpenLoop(int tabPlacement, PrimaryOpenLoopFuelingTable table, MafCompare comparer) {
+    public OpenLoopJY(int tabPlacement, PrimaryOpenLoopFuelingTable table, MafCompare comparer) {
         super(tabPlacement, table, comparer);
+        logger.setLevel(Level.ALL);
         runData = new XYSeries(runDataName);
         initialize();
     }
@@ -121,10 +100,10 @@ public class OpenLoop extends AMafScaling {
         gbl_dataRunPanel.rowWeights = new double[]{0.0};
         dataRunPanel.setLayout(gbl_dataRunPanel);
 
-        createRunTables(dataRunPanel);
+        createRunTables();
     }
     
-    private void createRunTables(JPanel dataRunPanel) {
+    private void createRunTables() {
         gbc_run = new GridBagConstraints();
         gbc_run.anchor = GridBagConstraints.PAGE_START;
         gbc_run.insets = new Insets(0, 2, 0, 2);
@@ -314,10 +293,7 @@ public class OpenLoop extends AMafScaling {
         }
         else if ("smoothing".equals(e.getActionCommand())) {
             JCheckBox checkBox = (JCheckBox)e.getSource();
-            if (checkBox.isSelected())
-                enableSmoothingView(true);
-            else
-                enableSmoothingView(false);
+            enableSmoothingView(checkBox.isSelected());
             setRanges();
         }
         else if ("trem".equals(e.getActionCommand())) {
@@ -337,10 +313,10 @@ public class OpenLoop extends AMafScaling {
         try {
             while (runTables.size() > RunCount)
                 removeRunTable(runTables.size() - 1);
-            for (int i = 0; i < runTables.size(); ++i) {
-                while (RunRowsCount < runTables.get(i).getRowCount())
-                    Utils.removeRow(RunRowsCount, runTables.get(i));
-                Utils.clearTable(runTables.get(i));
+            for (JTable runTable : runTables) {
+                while (RunRowsCount < runTable.getRowCount())
+                    Utils.removeRow(RunRowsCount, runTable);
+                Utils.clearTable(runTable);
             }
         }
         finally {
@@ -365,7 +341,7 @@ public class OpenLoop extends AMafScaling {
             clearChartData();
             clearChartCheckBoxes();
 
-            TreeMap<Integer, ArrayList<Double>> result = new TreeMap<Integer, ArrayList<Double>>();
+            TreeMap<Integer, ArrayList<Double>> result = new TreeMap<>();
             if (!getMafTableData(voltArray, gsArray))
                 return;
             if (!sortRunData(result) || result.isEmpty())
@@ -420,11 +396,7 @@ public class OpenLoop extends AMafScaling {
                 mafvArray.add(voltage);
                 afrArray.add(error);
                 closestVoltIdx = Utils.closestValueIndex(voltage, voltArray);
-                closestVolatageArray = result.get(closestVoltIdx);
-                if (closestVolatageArray == null) {
-                    closestVolatageArray = new ArrayList<Double>();
-                    result.put(closestVoltIdx, closestVolatageArray);
-                }
+                closestVolatageArray = result.computeIfAbsent(closestVoltIdx, k -> new ArrayList<>());
                 closestVolatageArray.add(error);
             }
         }
@@ -433,8 +405,8 @@ public class OpenLoop extends AMafScaling {
     
     private void calculateCorrectedGS(TreeMap<Integer, ArrayList<Double>> result) {
         ArrayList<Double> closestVolatageArray;
-        double gs = 0;
-        double avgError = 0;
+        double gs;
+        double avgError;
         int lastErrIndex = 0;
         int i;
         gsCorrected.addAll(gsArray);
@@ -443,8 +415,8 @@ public class OpenLoop extends AMafScaling {
             avgError = 0;
             closestVolatageArray = result.get(i);
             if (closestVolatageArray != null) {
-                for (int j = 0; j < closestVolatageArray.size(); ++j)
-                    avgError += closestVolatageArray.get(j);
+                for (Double aDouble : closestVolatageArray)
+                    avgError += aDouble;
                 avgError /= closestVolatageArray.size();
                 lastErrIndex = i;
             }
@@ -452,7 +424,7 @@ public class OpenLoop extends AMafScaling {
         }
         avgError = 0;
         ArrayList<Double> sortedAfrArray = result.get(lastErrIndex);
-        Collections.sort(sortedAfrArray, Collections.reverseOrder());
+        sortedAfrArray.sort(Collections.reverseOrder());
         for (i = 0; i < 10 && i < sortedAfrArray.size(); ++i)
             avgError += sortedAfrArray.get(i);
         if (i > 0)
@@ -495,8 +467,8 @@ public class OpenLoop extends AMafScaling {
             plot.getRangeAxis(1).setRange(runData.getMinY() - paddingY, runData.getMaxY() + paddingY);
         }
         else if (checkBoxSmoothing.isSelected()) {
-            double maxY = Collections.max(Arrays.asList(new Double[] { currMafData.getMaxY(), smoothMafData.getMaxY(), corrMafData.getMaxY() }));
-            double minY = Collections.min(Arrays.asList(new Double[] { currMafData.getMinY(), smoothMafData.getMinY(), corrMafData.getMinY() }));
+            double maxY = Collections.max(Arrays.asList(currMafData.getMaxY(), smoothMafData.getMaxY(), corrMafData.getMaxY()));
+            double minY = Collections.min(Arrays.asList(currMafData.getMinY(), smoothMafData.getMinY(), corrMafData.getMinY()));
             paddingX = smoothMafData.getMaxX() * 0.05;
             paddingY = maxY * 0.05;
             plot.getDomainAxis(0).setRange(smoothMafData.getMinX() - paddingX, smoothMafData.getMaxX() + paddingX);
@@ -510,7 +482,6 @@ public class OpenLoop extends AMafScaling {
             plot.getDomainAxis(0).setRange(voltArray.get(0) - paddingX, voltArray.get(voltArray.size() - 1) + paddingX);
             plot.getRangeAxis(0).setRange(gsCorrected.get(0) - paddingY, gsCorrected.get(gsCorrected.size() - 1) + paddingY);
             if (checkBoxRunData.isSelected()) {
-                paddingX = runData.getMaxX() * 0.05;
                 paddingY = runData.getMaxY() * 0.05;
                 plot.getRangeAxis(1).setRange(runData.getMinY() - paddingY, runData.getMaxY() + paddingY);
             }
@@ -523,7 +494,7 @@ public class OpenLoop extends AMafScaling {
     
     protected void onEnableSmoothingView(boolean flag) {
         checkBoxMafRpmData.setEnabled(!flag);
-        if (flag == false) {
+        if (!flag) {
             if (checkBoxMafRpmData.isSelected())
                 plotMafVRpmData();
             if (checkBoxRunData.isSelected())
@@ -564,11 +535,11 @@ public class OpenLoop extends AMafScaling {
                 out.write("\n");
             }
             // write run data
-            for (int t = 0; t < runTables.size(); ++t) {
-                JTable table = runTables.get(t);
+            for (JTable table : runTables) {
                 for (i = 0; i < table.getColumnCount(); ++i) {
                     for (j = 0; j < table.getRowCount(); ++j)
-                        out.write(table.getValueAt(j, i).toString() + ",");
+                        out.write(table.getValueAt(j, i)
+                                       .toString() + ",");
                     out.write("\n");
                 }
             }
@@ -611,27 +582,23 @@ public class OpenLoop extends AMafScaling {
             while (line != null) {
                 elements = line.split(Utils.fileFieldSplitter, -1);
                 switch (i) {
-                case 0:
-                    Utils.ensureColumnCount(elements.length - 1, mafTable);
-                    for (j = 0; j < elements.length - 1; ++j)
-                        mafTable.setValueAt(elements[j], i, j);
-                    break;
-                case 1:
-                    Utils.ensureColumnCount(elements.length - 1, mafTable);
-                    for (j = 0; j < elements.length - 1; ++j)
-                        mafTable.setValueAt(elements[j], i, j);
-                    break;
-                default:
-                    int offset = runTables.size() * 3 + mafTable.getRowCount();
-                    if (i > 1 && i < offset) {
-                        if (l == 0 )
-                            table = runTables.get(k++);
-                        Utils.ensureRowCount(elements.length - 1, table);
+                    case 0, 1 -> {
+                        Utils.ensureColumnCount(elements.length - 1, mafTable);
                         for (j = 0; j < elements.length - 1; ++j)
-                            table.setValueAt(elements[j], j, l);
-                        l += 1;
-                        if (l == 3)
-                            l = 0;
+                            mafTable.setValueAt(elements[j], i, j);
+                    }
+                    default -> {
+                        int offset = runTables.size() * 3 + mafTable.getRowCount();
+                        if (i > 1 && i < offset) {
+                            if (l == 0)
+                                table = runTables.get(k++);
+                            Utils.ensureRowCount(elements.length - 1, table);
+                            for (j = 0; j < elements.length - 1; ++j)
+                                table.setValueAt(elements[j], j, l);
+                            l += 1;
+                            if (l == 3)
+                                l = 0;
+                        }
                     }
                 }
                 i += 1;
@@ -657,33 +624,28 @@ public class OpenLoop extends AMafScaling {
     
     private boolean getColumnsFilters(String[] elements, boolean isPolfTableSet, boolean isPolfTableMap) {
         boolean ret = true;
-        ArrayList<String> columns = new ArrayList<String>(Arrays.asList(elements));
+        ArrayList<String> columns = new ArrayList<>(Arrays.asList(elements));
         String logThtlAngleColName = Config.getThrottleAngleColumnName();
-        String logAfLearningColName = Config.getAfLearningColumnName();
-        String logAfCorrectionColName = Config.getAfCorrectionColumnName();
         String logMafvColName = Config.getMafVoltageColumnName();
         String logAfrColName = Config.getWidebandAfrColumnName();
         String logRpmColName = Config.getRpmColumnName();
         String logLoadColName = Config.getLoadColumnName();
         String logMapColName = Config.getMapColumnName();
         String logCommandedAfrColName = Config.getCommandedAfrColumnName();
+        String logClOlStatusColName = Config.getClOlStatusColumnName();
         logThtlAngleColIdx = columns.indexOf(logThtlAngleColName);
-        logAfLearningColIdx = columns.indexOf(logAfLearningColName);
-        logAfCorrectionColIdx = columns.indexOf(logAfCorrectionColName);
         logMafvColIdx = columns.indexOf(logMafvColName);
         logAfrColIdx = columns.indexOf(logAfrColName);
         logRpmColIdx = columns.indexOf(logRpmColName);
         logLoadColIdx = columns.indexOf(logLoadColName);
         logMapColIdx = columns.indexOf(logMapColName);
         logCommandedAfrColIdx = columns.indexOf(logCommandedAfrColName);
+        logClOlStatusColIdx = columns.indexOf(logClOlStatusColName);
         if (logThtlAngleColIdx == -1)                                 { Config.setThrottleAngleColumnName(Config.NO_NAME); ret = false; }
-        if (logAfLearningColIdx == -1)                                { Config.setAfLearningColumnName(Config.NO_NAME);    ret = false; }
-        if (logAfCorrectionColIdx == -1)                              { Config.setAfCorrectionColumnName(Config.NO_NAME);  ret = false; }
         if (logMafvColIdx == -1)                                      { Config.setMafVoltageColumnName(Config.NO_NAME);    ret = false; }
         if (logAfrColIdx == -1)                                       { Config.setWidebandAfrColumnName(Config.NO_NAME);   ret = false; }
         if (logRpmColIdx == -1)                                       { Config.setRpmColumnName(Config.NO_NAME);           ret = false; }
-        if (logLoadColIdx == -1 && isPolfTableSet && !isPolfTableMap) { Config.setLoadColumnName(Config.NO_NAME);          ret = false; }
-        if (logMapColIdx == -1 && isPolfTableMap)                     { Config.setMapColumnName(Config.NO_NAME);           ret = false; }
+        if (logClOlStatusColIdx == -1)                                { Config.setClOlStatusColumnName(Config.NO_NAME);   ret = false; }
         if (logCommandedAfrColIdx == -1) {
             if (isPolfTableSet) {
                 if (!logCommandedAfrColName.equals(Config.NO_NAME)) {
@@ -696,7 +658,17 @@ public class OpenLoop extends AMafScaling {
                 ret = false;
             }
         }
+        if (logLoadColIdx == -1 && isPolfTableSet && !isPolfTableMap && logCommandedAfrColIdx == -1) {
+            Config.setLoadColumnName(Config.NO_NAME);
+            ret = false;
+        }
+        if (logMapColIdx == -1 && isPolfTableMap && logCommandedAfrColIdx == -1) {
+            Config.setMapColumnName(Config.NO_NAME);
+            ret = false;
+        }
+
         wotPoint = Config.getWOTStationaryPointValue();
+        clValue = Config.getClOlStatusValue();
         minMafV = Config.getMafVMinimumValue();
         afrErrPrct = Config.getWidebandAfrErrorPercentValue();
         minWotEnrichment = Config.getWOTEnrichmentValue();
@@ -712,16 +684,16 @@ public class OpenLoop extends AMafScaling {
         File[] files = fileChooser.getSelectedFiles();
         for (File file : files) {
             BufferedReader br = null;
-            ArrayDeque<String[]> buffer = new ArrayDeque<String[]>();
+            ArrayDeque<String[]> buffer = new ArrayDeque<>();
             try {
                 br = new BufferedReader(new InputStreamReader(new FileInputStream(file.getAbsoluteFile()), Config.getEncoding()));
-                String line = null;
+                String line;
                 String [] elements = null;
                 while ((line = br.readLine()) != null && (elements = line.split(Utils.fileFieldSplitter, -1)) != null && elements.length < 2)
                     continue;
                 getColumnsFilters(elements, isPolfSet, isPolfMap);
                 boolean resetColumns = false;
-                if (logThtlAngleColIdx >= 0 || logAfLearningColIdx >= 0 || logAfCorrectionColIdx >= 0 || logMafvColIdx >= 0 ||
+                if (logClOlStatusColIdx >= 0 || logThtlAngleColIdx >= 0 || logMafvColIdx >= 0 ||
                     logAfrColIdx >= 0 || logRpmColIdx >= 0 || logLoadColIdx >= 0 || logCommandedAfrColIdx >= 0 || logMapColIdx >= 0) {
                     if (displayDialog) {
                         int rc = JOptionPane.showOptionDialog(null, "Would you like to reset column names or filter values?", "Columns/Filters Reset", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, optionButtons, optionButtons[0]);
@@ -732,36 +704,43 @@ public class OpenLoop extends AMafScaling {
                     }
                 }
                 
-                if (resetColumns || logThtlAngleColIdx < 0 || logAfLearningColIdx < 0 || logAfCorrectionColIdx < 0 || 
-                    logMafvColIdx < 0 || logAfrColIdx < 0 || logRpmColIdx < 0 || (logLoadColIdx < 0 && !isPolfMap && isPolfSet) ||
-                    (logMapColIdx < 0 && isPolfMap) || (logCommandedAfrColIdx < 0 && !isPolfSet)) {
-                    ColumnsFiltersSelection selectionWindow = new OLColumnsFiltersSelection(isPolfSet, isPolfMap);
+                if (resetColumns
+                        || logClOlStatusColIdx < 0
+                        || logThtlAngleColIdx < 0
+                        || logMafvColIdx < 0
+                        || logAfrColIdx < 0
+                        || logRpmColIdx < 0
+                        || (logLoadColIdx < 0 && !isPolfMap && isPolfSet && logCommandedAfrColIdx < 0)
+                        || (logMapColIdx < 0 && isPolfMap && logCommandedAfrColIdx < 0)
+                        || (logCommandedAfrColIdx < 0 && !isPolfSet)) {
+                    ColumnsFiltersSelection selectionWindow = new OLJYColumnsFiltersSelection(isPolfSet, isPolfMap);
                     if (!selectionWindow.getUserSettings(elements) || !getColumnsFilters(elements, isPolfSet, isPolfMap))
                         return;
                 }
                 
                 String[] flds;
                 String[] afrflds;
-                boolean wotFlag = true;
+                int clol;
+                boolean isOL = true;
                 boolean foundWot = false;
                 double throttle;
                 double afr;
                 double rpm;
                 double mafv;
-                double cmdafr = 0;
-                double afrErr = 0;
+                double cmdafr;
+                double afrErr;
                 double loadOrMap;
                 int skipRowCount = 0;
-                int row = 0;
-                int i = 0;
-                int j = 0;
-                for (; i < runTables.size(); ++i) {
-                    if (runTables.get(i).getValueAt(0, 0).toString().isEmpty())
+                int logRow = 0;
+                int runTableIndex = 0;
+                int runTableRow = 0;
+                for (; runTableIndex < runTables.size(); ++runTableIndex) {
+                    if (runTables.get(runTableIndex).getValueAt(0, 0).toString().isEmpty())
                         break;
                 }
-                if (i == runTables.size())
+                if (runTableIndex == runTables.size())
                     addRunTable();
-                JTable table = runTables.get(i);
+                JTable runTable = runTables.get(runTableIndex);
                 setCursor(new Cursor(Cursor.WAIT_CURSOR));
                 for (int k = 0; k <= afrRowOffset && line != null; ++k) {
                     line = br.readLine();
@@ -776,50 +755,54 @@ public class OpenLoop extends AMafScaling {
                         buffer.addFirst(line.split(Utils.fileFieldSplitter, -1));
 
                     try {
-                        throttle = Double.valueOf(flds[logThtlAngleColIdx]);
-                        if (row == 0 && throttle < 99)
-                            wotFlag = false;
-                        if (throttle < wotPoint) {
-                            if (wotFlag == true) {
-                                wotFlag = false;
-                                skipRowCount = 0;
-                                j -= 1;
-                                while (j > 0 && skipRowCount < skipRowsOnTransition) {
-                                    table.setValueAt("", j, 0);
-                                    table.setValueAt("", j, 1);
-                                    table.setValueAt("", j, 2);
-                                    skipRowCount += 1;
-                                    j -= 1;
-                                }
+                        throttle = Double.parseDouble(flds[logThtlAngleColIdx]);
+
+                        if (flds[logClOlStatusColIdx].equals("on"))
+                            clol = 0;
+                        else if (flds[logClOlStatusColIdx].equals("off"))
+                            clol = 1;
+                        else
+                            clol = (int)Utils.parseValue(flds[logClOlStatusColIdx]);
+
+                        // If closed loop
+                        if (clol == clValue) {
+                            // Transition from OL to CL
+                            if (isOL) {
+                                isOL = false;
                                 skipRowCount = 0;
                             }
                         }
-                        else {
-                            if (wotFlag == false) {
-                                wotFlag = true;
+                        // If open loop AND throttle position is above threshold
+                        else if (throttle >= wotPoint) {
+                            // Transition from CL to OL
+                            if (!isOL) {
+                                isOL = true;
                                 skipRowCount = 0;
+                                // If there was previous WOT run, increment to next run table
                                 if (foundWot &&
-                                    !table.getValueAt(0, 0).equals("") &&
-                                    !table.getValueAt(1, 0).equals("") &&
-                                    !table.getValueAt(2, 0).equals("")) {
-                                    i += 1;
-                                    if (i == runTables.size())
+                                    !runTable.getValueAt(0, 0).equals("") &&
+                                    !runTable.getValueAt(1, 0).equals("") &&
+                                    !runTable.getValueAt(2, 0).equals("")) {
+                                    runTableIndex += 1;
+                                    if (runTableIndex == runTables.size())
                                         addRunTable();
-                                    table = runTables.get(i);
+                                    runTable = runTables.get(runTableIndex);
                                 }
-                                if (row > 0)
-                                    j = 0;
+                                if (logRow > 0)
+                                    runTableRow = 0;
                             }
+
                             if (skipRowCount >= skipRowsOnTransition) {
-                                mafv = Double.valueOf(flds[logMafvColIdx]);
+                                mafv = Double.parseDouble(flds[logMafvColIdx]);
                                 if (minMafV <= mafv) {
                                     foundWot = true;
-                                    afr = Double.valueOf(afrflds[logAfrColIdx]);
-                                    rpm = Double.valueOf(flds[logRpmColIdx]);
-                                    afr = afr / ((100.0 - (Double.valueOf(flds[logAfLearningColIdx]) + Double.valueOf(flds[logAfCorrectionColIdx]))) / 100.0);
+                                    afr = Double.parseDouble(afrflds[logAfrColIdx]);
+                                    // Convert AEM wideband voltage to AFR
+                                    //afr = (Double.parseDouble(afrflds[logAfrColIdx]) * 2.375) + 7.3125;
+                                    rpm = Double.parseDouble(flds[logRpmColIdx]);
 
                                     if (logCommandedAfrColIdx >= 0)
-                                        cmdafr = Double.valueOf(flds[logCommandedAfrColIdx]);
+                                        cmdafr = Double.parseDouble(flds[logCommandedAfrColIdx]);
                                     else {
                                         loadOrMap = (isPolfMap ? Double.valueOf(flds[logMapColIdx]) : Double.valueOf(flds[logLoadColIdx]));
                                         cmdafr = Utils.calculateCommandedAfr(rpm, loadOrMap, minWotEnrichment, polfTable);
@@ -827,11 +810,11 @@ public class OpenLoop extends AMafScaling {
 
                                     afrErr = (afr - cmdafr) / cmdafr * 100.0;
                                     if (Math.abs(afrErr) <= afrErrPrct) {
-                                        Utils.ensureRowCount(j + 1, table);
-                                        table.setValueAt(rpm, j, 0);
-                                        table.setValueAt(mafv, j, 1);
-                                        table.setValueAt(afrErr, j, 2);
-                                        j += 1;
+                                        Utils.ensureRowCount(runTableRow + 1, runTable);
+                                        runTable.setValueAt(rpm, runTableRow, 0);
+                                        runTable.setValueAt(mafv, runTableRow, 1);
+                                        runTable.setValueAt(afrErr, runTableRow, 2);
+                                        runTableRow += 1;
                                     }
                                 }
                             }
@@ -840,10 +823,10 @@ public class OpenLoop extends AMafScaling {
                     }
                     catch (NumberFormatException e) {
                         logger.error(e);
-                        JOptionPane.showMessageDialog(null, "Error parsing number at " + file.getName() + " line " + (row + 1) + ": " + e, "Error processing file", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(null, "Error parsing number at " + file.getName() + " line " + (logRow + 1) + ": " + e, "Error processing file", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
-                    row += 1;
+                    logRow += 1;
                 }
 
                 if (!foundWot) {
@@ -871,7 +854,7 @@ public class OpenLoop extends AMafScaling {
     
     protected String usage() {
         ResourceBundle bundle;
-        bundle = ResourceBundle.getBundle("com.vgi.mafscaling.openloop");
+        bundle = ResourceBundle.getBundle("com.vgi.mafscaling.openloopjy");
         return bundle.getString("usage"); 
     }
 }

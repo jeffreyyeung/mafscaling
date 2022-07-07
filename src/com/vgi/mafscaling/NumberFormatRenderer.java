@@ -26,7 +26,7 @@ import javax.swing.JTable;
 import javax.swing.SwingConstants;
 
 
-class NumberFormatRenderer extends BgColorFormatRenderer {
+public class NumberFormatRenderer extends BgColorFormatRenderer {
     private static final long serialVersionUID = 4722830336189723801L;
     private Format[][] formats = null;
     private DecimalFormat formatter = new DecimalFormat("0.00");

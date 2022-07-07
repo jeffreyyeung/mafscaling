@@ -202,6 +202,14 @@ public class Config {
         props.setProperty("VEFlowColumnName", name);
     }
 
+    public static String getCLFuelTargetColumnName() {
+        return props.getProperty("CLFuelTargetColumnName", NO_NAME);
+    }
+
+    public static void setCLFuelTargetColumnName(String name) {
+        props.setProperty("CLFuelTargetColumnName", name);
+    }
+
     public static String getWidebandAfrColumnName() {
         return props.getProperty("WidebandAfrColumnName", NO_NAME);
     }

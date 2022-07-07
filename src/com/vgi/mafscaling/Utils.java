@@ -65,12 +65,18 @@ public final class Utils {
     public final static String fileFieldSplitter = "\\s*,\\s*";
     public final static String fpRegex = "[\\x00-\\x20]*[+-]?(NaN|Infinity|((((\\p{Digit}+)(\\.)?((\\p{Digit}+)?)([eE][+-]?(\\p{Digit}+))?)|(\\.((\\p{Digit}+))([eE][+-]?(\\p{Digit}+))?)|(((0[xX](\\p{XDigit}+)(\\.)?)|(0[xX](\\p{XDigit}+)?(\\.)(\\p{XDigit}+)))[pP][+-]?(\\p{Digit}+)))[fFdD]?))[\\x00-\\x20]*";
     // ("[\\x00-\\x20]*[+-]?(((\\p{Digit}+)(\\.)?((\\p{Digit}+)?))|(\\.((\\p{Digit}+))))[\\x00-\\x20]*");
+    public final static Pattern fpPattern = Pattern.compile(fpRegex);
     public final static String tmRegex = ".*\\d{1,2}:\\d{2}:\\d{2}\\.\\d{3}.*";
     public final static String onOffRegex = "(?i)^\\s*(ON|OFF|OPENED|OPEN|CLOSED|CLOSE)\\s*$";
+    public final static Pattern onOffPattern = Pattern.compile(onOffRegex, Pattern.CASE_INSENSITIVE);
     public final static Pattern offPattern = Pattern.compile("^\\s*(OFF|CLOSED|CLOSE)\\s*$", Pattern.CASE_INSENSITIVE);
     public final static Pattern onPattern = Pattern.compile("^\\s*(ON|OPENED|OPEN)\\s*$", Pattern.CASE_INSENSITIVE);
     public final static Color ZeroColor = new Color(255, 255, 255, 0);
-    
+
+    public final static String AFSENS1RATIO = "A/F Sensor #1 Ratio";
+    public final static String AFSENS3VOLT = "A/F Sensor #3 Voltage";
+    public final static String CMDFUELFINAL = "Commanded Fuel Final";
+
     private static long baseTime = 0;
 
     //////////////////////////////////////////////////////////////////////////////
@@ -677,7 +683,7 @@ public final class Utils {
     /**
      * Method returns index of value closest to the specified in the given array of values
      * @param val, target value
-     * @param array, array of values
+     * @param arr, array of values
      * @return closet value to the target value.
      * Returns lower index if distance is the same between lower and higher indexed values.
      */
@@ -1093,7 +1099,10 @@ public final class Utils {
         }
         return result;
     }
-    
+
+    public static double transformAemAfrVoltage(double voltage) {
+        return (voltage * 2.375) + 7.3125;
+    }
 }
 
 /**

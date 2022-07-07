@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -731,16 +732,16 @@ public class LogStats extends FCTabbedPane implements ActionListener {
         double xRound = Double.NaN;
         if (xAxisRoundTextBox.getValue() != null) {
             xRound = (((Number)xAxisRoundTextBox.getValue()).doubleValue());
-            if (xRound < 0.01) {
-                JOptionPane.showMessageDialog(null, "Incorrect X-Axis scaling, minimum allowed is 0.01", "Error", JOptionPane.ERROR_MESSAGE);
+            if (xRound < 0.001) {
+                JOptionPane.showMessageDialog(null, "Incorrect X-Axis scaling, minimum allowed is 0.001", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
         }
         double yRound = Double.NaN;
         if (yAxisRoundTextBox.getValue() != null) {
             yRound = (((Number)yAxisRoundTextBox.getValue()).doubleValue());
-            if (yRound < 0.01) {
-                JOptionPane.showMessageDialog(null, "Incorrect Y-Axis scaling, minimum allowed is 0.01", "Error", JOptionPane.ERROR_MESSAGE);
+            if (yRound < 0.001) {
+                JOptionPane.showMessageDialog(null, "Incorrect Y-Axis scaling, minimum allowed is 0.001", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
         }
@@ -787,6 +788,9 @@ public class LogStats extends FCTabbedPane implements ActionListener {
                 ArrayList<String> columns = new ArrayList<String>(Arrays.asList(elements));
                 int xColIdx = columns.indexOf(xAxisColName);
                 int yColIdx = columns.indexOf(yAxisColName);
+                int af3VoltageColIdx = columns.indexOf(Utils.AFSENS3VOLT);
+                int af1RatioColIdx = columns.indexOf(Utils.AFSENS1RATIO);
+                int cmdFuelFinalColIdx = columns.indexOf(Utils.CMDFUELFINAL);
                 ArrayList<Integer> vColIdxArray = new ArrayList<Integer>();
                 for (String dataColName : dataColNames)
                     vColIdxArray.add(columns.indexOf(dataColName));
@@ -826,10 +830,43 @@ public class LogStats extends FCTabbedPane implements ActionListener {
                         }
                         if (tmColIdx >= 0)
                             elements[tmColIdx] = String.valueOf(Utils.parseTime(elements[tmColIdx]));
+
+                        // Transform AF#3 voltage values to AFR
+                        if (af3VoltageColIdx != -1) {
+                            try {
+                                elements[af3VoltageColIdx] = String.valueOf(Utils.transformAemAfrVoltage(Double.parseDouble(elements[af3VoltageColIdx])));
+                            } catch (NumberFormatException e) {
+                                JOptionPane.showMessageDialog(null, "Invalid AF#3 value - file: " + logFile.getName() + ", line: " + i + ", value: " + elements[af3VoltageColIdx]);
+                                return;
+                            }
+                        }
+
+                        // Negative AF#1 ratio value
+                        if (af1RatioColIdx != -1) {
+                            try {
+                                elements[af1RatioColIdx] = String.valueOf(Double.parseDouble(elements[af1RatioColIdx]) * -1);
+                            } catch (NumberFormatException e) {
+                                JOptionPane.showMessageDialog(null, "Invalid CFF value - file: " + logFile.getName() + ", line: " + i + ", value: " + elements[af1RatioColIdx]);
+                                return;
+                            }
+                        }
+
+                        // Negative commanded fuel final ratio value
+                        if (cmdFuelFinalColIdx != -1) {
+                            try {
+                                elements[cmdFuelFinalColIdx] = String.valueOf(Double.parseDouble(elements[cmdFuelFinalColIdx]) * -1);
+                            } catch (NumberFormatException e) {
+                                JOptionPane.showMessageDialog(null, "Invalid CFF value - file: " + logFile.getName() + ", line: " + i + ", value: " + elements[cmdFuelFinalColIdx]);
+                                return;
+                            }
+                        }
+
                         // Check if value passes all filters
                         boolean passFilters = true;
                         for (int k = 0; k < filterButtonList.size() && useFilterArr[k]; ++k) {
-                            if (!Pattern.matches(Utils.fpRegex, elements[fltrColIdxArr[k]])) {
+                            Matcher fpMatcher = Utils.fpPattern.matcher(elements[fltrColIdxArr[k]]);
+                            Matcher onOffMatcher = Utils.onOffPattern.matcher(elements[fltrColIdxArr[k]]);
+                            if (!fpMatcher.matches() && !onOffMatcher.matches()) {
                                 JOptionPane.showMessageDialog(null, "Invalid value for Filter " + (k + 1) + ", file " + logFile.getName() + ", column " + (fltrColIdxArr[k] + 1) + ", row " + (i + 1), "Invalid value", JOptionPane.ERROR_MESSAGE);
                                 return;
                             }

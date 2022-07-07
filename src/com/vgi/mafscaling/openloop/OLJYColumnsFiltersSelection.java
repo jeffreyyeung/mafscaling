@@ -16,15 +16,18 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-package com.vgi.mafscaling;
+package com.vgi.mafscaling.openloop;
+
+import com.vgi.mafscaling.ColumnsFiltersSelection;
+import com.vgi.mafscaling.Config;
 
 import java.awt.event.ActionEvent;
 
-public class OLColumnsFiltersSelection extends ColumnsFiltersSelection {
-    private boolean isPolfTableSet = false;
-    private boolean isPolfTableMap = false;
-    
-    public OLColumnsFiltersSelection(boolean isPolfTableSet, boolean isPolfTableMap) {
+public class OLJYColumnsFiltersSelection extends ColumnsFiltersSelection {
+    private final boolean isPolfTableSet;
+    private final boolean isPolfTableMap;
+
+    public OLJYColumnsFiltersSelection(boolean isPolfTableSet, boolean isPolfTableMap) {
         this.isPolfTableSet = isPolfTableSet;
         this.isPolfTableMap = isPolfTableMap;
     }
@@ -40,11 +43,10 @@ public class OLColumnsFiltersSelection extends ColumnsFiltersSelection {
             addManifoldAbsolutePressureColSelection();
         else if (isPolfTableSet)
             addLoadColSelection();
-        addAFLearningColSelection();
-        addAFCorrectionColSelection();
         addMAFVoltageColSelection();
         addWidebandAFRColSelection();
         addThrottleAngleColSelection();
+        addClOlStatusColSelection();
         addCommandedAFRColSelection(isPolfTableSet);
     }
     
@@ -89,37 +91,17 @@ public class OLColumnsFiltersSelection extends ColumnsFiltersSelection {
             else
                 Config.setMapColumnName(value);
         }
-        else if (isPolfTableSet) {
-            // Engine Load
-            value = loadName.getText().trim();
-            colName = loadLabelText;
-            if (value.isEmpty()) {
-                ret = false;
-                error.append("\"").append(colName).append("\" column must be specified\n");
-            }
-            else
-                Config.setLoadColumnName(value);
-        }
-        
-        // AFR Learning
-        value = afLearningName.getText().trim();
-        colName = afLearningLabelText;
-        if (value.isEmpty()) {
-            ret = false;
-            error.append("\"").append(colName).append("\" column must be specified\n");
-        }
-        else
-            Config.setAfLearningColumnName(value);
-        
-        // AFR Correction
-        value = afCorrectionName.getText().trim();
-        colName = afCorrectionLabelText;
-        if (value.isEmpty()) {
-            ret = false;
-            error.append("\"").append(colName).append("\" column must be specified\n");
-        }
-        else
-            Config.setAfCorrectionColumnName(value);
+//        else if (isPolfTableSet) {
+//            // Engine Load
+//            value = loadName.getText().trim();
+//            colName = loadLabelText;
+//            if (value.isEmpty()) {
+//                ret = false;
+//                error.append("\"").append(colName).append("\" column must be specified\n");
+//            }
+//            else
+//                Config.setLoadColumnName(value);
+//        }
         
         // Maf Voltage
         value = mafVName.getText().trim();
@@ -130,6 +112,16 @@ public class OLColumnsFiltersSelection extends ColumnsFiltersSelection {
         }
         else
             Config.setMafVoltageColumnName(value);
+
+        // CL/OL Status
+        value = clolStatusName.getText().trim();
+        colName = clolStatusLabelText;
+        if (value.isEmpty()) {
+            ret = false;
+            error.append("\"").append(colName).append("\" column must be specified\n");
+        }
+        else
+            Config.setClOlStatusColumnName(value);
 
         // Wideband AFR
         value = wbAfrName.getText().trim();
@@ -169,22 +161,22 @@ public class OLColumnsFiltersSelection extends ColumnsFiltersSelection {
         }
         
         // Min MAF Voltage filter
-        Config.setMafVMinimumValue(Double.valueOf(minMafVFilter.getText()));
-        
+        Config.setMafVMinimumValue(Double.parseDouble(minMafVFilter.getText()));
+
         // WOT Stationary point
         Config.setWOTStationaryPointValue(Integer.valueOf(wotStationaryPointFilter.getValue().toString()));
-        
+
         // Afr Error filter
-        Config.setWidebandAfrErrorPercentValue(Double.valueOf(afrErrorFilter.getText()));
+        Config.setWidebandAfrErrorPercentValue(Double.parseDouble(afrErrorFilter.getText()));
         
         // WOT Enrichment
-        Config.setWOTEnrichmentValue(Double.valueOf(wotEnrichmentField.getText()));
+        Config.setWOTEnrichmentValue(Double.parseDouble(wotEnrichmentField.getText()));
         
         // WBO2 Row Offset
-        Config.setWBO2RowOffset(Integer.valueOf(wbo2RowOffsetField.getText()));
+        Config.setWBO2RowOffset(Integer.parseInt(wbo2RowOffsetField.getText()));
         
         // OL/CL Transition Skip Rows
-        Config.setOLCLTransitionSkipRows(Integer.valueOf(olClTransitionSkipRowsField.getText()));
+        Config.setOLCLTransitionSkipRows(Integer.parseInt(olClTransitionSkipRowsField.getText()));
         
         return ret;
     }

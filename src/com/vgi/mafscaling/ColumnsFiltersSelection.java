@@ -25,8 +25,11 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.Serial;
 import java.text.NumberFormat;
 import java.util.Arrays;
+import java.util.Objects;
+
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -50,7 +53,7 @@ import javax.swing.UIDefaults;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableModel;
 
-abstract class ColumnsFiltersSelection implements ActionListener {
+abstract public class ColumnsFiltersSelection implements ActionListener {
     public static final String rpmLabelText = "Engine Speed";
     public static final String loadLabelText = "Engine Load";
     public static final String mpLabelText = "Manifold Pressure";
@@ -71,6 +74,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
     public static final String iatLabelText = "Intake Air Temperature";
     public static final String ffbLabelText = "Final Fueling Base";
     public static final String veFlowLabelText = "VE Flow/VE Commanded";
+    public static final String clFuelTargetText = "Closed Loop Fuel Target";
     public static final String thrtlChangeMaxLabelText = "Throttle Change % Maximum";
     public static final String minThrottleLabelText = "Throttle Input Minimum";
     public static final String isLoadCompInRatioLabelText = "Load Comp values are in ratio";
@@ -88,8 +92,6 @@ abstract class ColumnsFiltersSelection implements ActionListener {
     public static final String maxAfrLabelText = "AFR Maximum";
     public static final String minAfrLabelText = "AFR Minimum";
     public static final String atmPressureLabelText = "Atm Pressure";
-    public static final String maxCorrLabelText = "Error Correction Maximum";
-    public static final String minCorrLabelText = "Error Correction Minimum";
     public static final String maxDvdtLabelText = "dV/dt Maximum";
     public static final String minCellHitCountLabelText = "Cell Hit Minimum Count";
     public static final String minEngineLoadLabelText = "Engine Load Minimum";
@@ -123,6 +125,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
     protected JTextField iatName = null;
     protected JTextField ffbName = null;
     protected JTextField veFlowName = null;
+    protected JTextField clFuelTargetName = null;
     protected JFormattedTextField minMafVFilter = null;
     protected JFormattedTextField maxMafVFilter = null;
     protected JFormattedTextField maxRPMFilter = null;
@@ -164,7 +167,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
     
     protected NumberFormat doubleFmt = NumberFormat.getNumberInstance();
     protected NumberFormat intFmt = NumberFormat.getNumberInstance();
-    protected ImageIcon arrowImage = new ImageIcon(getClass().getResource("/arrow.jpg"));
+    protected ImageIcon arrowImage = new ImageIcon(Objects.requireNonNull(getClass().getResource("/arrow.jpg")));
     protected UIDefaults zeroInsets = new UIDefaults();
     protected final int windowHeight = 540;
     protected final int windowWidth = 670;
@@ -195,7 +198,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         pane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         // bring scroll pane to the start
-        SwingUtilities.invokeLater(new Runnable() { public void run() { pane.getVerticalScrollBar().setValue(0); } });
+        SwingUtilities.invokeLater(() -> pane.getVerticalScrollBar().setValue(0));
         
         do {
             if (JOptionPane.OK_OPTION != JOptionPane.showConfirmDialog(null, pane, "Columns / Filters Settings", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE))
@@ -206,10 +209,10 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         return true;
     }
 
-    abstract void addColSelection();
-    abstract void addFilterSelection();
-    abstract boolean validate(StringBuffer error);
-    abstract boolean processDefaultButton(ActionEvent e);
+    abstract protected void addColSelection();
+    abstract protected void addFilterSelection();
+    abstract protected boolean validate(StringBuffer error);
+    abstract protected boolean processDefaultButton(ActionEvent e);
     protected void addColumnsNote() { }
     
     protected void createColumnsPanel(String[] elements) {
@@ -237,8 +240,9 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         Dimension d = columnsPanel.getPreferredSize();
         // Columns selection table
         columnsTable = new JTable() {
+            @Serial
             private static final long serialVersionUID = 1L;
-            public boolean isCellEditable(int row, int column) { return false; };
+            public boolean isCellEditable(int row, int column) { return false; }
         };
         columnsTable.setColumnSelectionAllowed(false);
         columnsTable.setCellSelectionEnabled(true);
@@ -406,6 +410,13 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addCopyButton(colrow, "veflow");
     }
 
+    protected void addCLFuelTargetColSelection() {
+        // Closed Loop Fuel Target
+        addLabel(columnsPanel, ++colrow, clFuelTargetText);
+        clFuelTargetName = addColumn(colrow, Config.getCLFuelTargetColumnName());
+        addCopyButton(colrow, "clft");
+    }
+
     protected void createFiltersPanel() {
         filtrow = 0;
         filtersPanel = new JPanel();
@@ -428,7 +439,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Set this filter to process just Closed Loop part of MAF curve data");        
         addLabel(filtersPanel, ++filtrow, maxMafVLabelText);
         maxMafVFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "maxmafv");
+        addDefaultButton("maxmafv");
     }
     
     protected void addMAFVoltageMinimumFilter() {
@@ -436,7 +447,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Set this filter to process just Open Loop part of MAF curve data");
         addLabel(filtersPanel, ++filtrow, minMafVLabelText);
         minMafVFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "minmafv");
+        addDefaultButton("minmafv");
     }
     
     protected void addRPMMaximumFilter() {
@@ -444,7 +455,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where RPM is above the filter value");
         addLabel(filtersPanel, ++filtrow, maxRPMLabelText);
         maxRPMFilter = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "maxrpm");
+        addDefaultButton("maxrpm");
     }
     
     protected void addRPMMinimumFilter() {
@@ -452,7 +463,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where RPM is below the filter value");
         addLabel(filtersPanel, ++filtrow, minRPMLabelText);
         minRPMFilter = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "minrpm");
+        addDefaultButton("minrpm");
     }
 
     protected void addFFBMaximumFilter() {
@@ -460,7 +471,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where FFB is above the filter value");
         addLabel(filtersPanel, ++filtrow, maxFFBLabelText);
         maxFFBFilter = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "maxffb");
+        addDefaultButton("maxffb");
     }
     
     protected void addFFBMinimumFilter() {
@@ -468,7 +479,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where FFB is below the filter value");
         addLabel(filtersPanel, ++filtrow, minFFBLabelText);
         minFFBFilter = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "minffb");
+        addDefaultButton("minffb");
     }
 
     protected void addAFRMaximumFilter() {
@@ -476,7 +487,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where AFR is above the specified maximum");
         addLabel(filtersPanel, ++filtrow, maxAfrLabelText);
         maxAfrFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "maxafr");
+        addDefaultButton("maxafr");
     }
     
     protected void addAFRMinimumFilter() {
@@ -484,7 +495,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where AFR is below the specified minimum");
         addLabel(filtersPanel, ++filtrow, minAfrLabelText);
         minAfrFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "minafr");
+        addDefaultButton("minafr");
     }
 
     protected void addAtmPressureFilter() {
@@ -492,7 +503,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Specify your Atmosphere Pressure if above sea level, otherwise leave it at 14.7");
         addLabel(filtersPanel, ++filtrow, atmPressureLabelText);
         atmPressureFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "atmpress");
+        addDefaultButton("atmpress");
     }
     
     protected void addIATMaximumFilter() {
@@ -500,7 +511,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Set this filter to filter out data with high Intake Air Temperature");
         addLabel(filtersPanel, ++filtrow, maxIatLabelText);
         maxIatFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "maxiat");
+        addDefaultButton("maxiat");
     }
     
     protected void addDvDtMaximumFilter() {
@@ -508,7 +519,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where dV/dt is above the specified maximum");
         addLabel(filtersPanel, ++filtrow, maxDvdtLabelText);
         maxDvdtFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "maxdvdt");
+        addDefaultButton("maxdvdt");
     }
     
     protected void addThrottleChangeMaximumFilter() {
@@ -516,7 +527,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Set this filter to filter out throttle tip-in errors");
         addLabel(filtersPanel, ++filtrow, thrtlChangeMaxLabelText);
         thrtlChangeMaxFilter = addSpinnerFilter(filtrow, Config.getThrottleChangeMaxValue(), -1, 30, 1);
-        addDefaultButton(filtrow, "thrtlchange");
+        addDefaultButton("thrtlchange");
     }
     
     protected void addThrottleMinimumFilter() {
@@ -524,7 +535,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where Throttle Input is below the specified minimum");
         addLabel(filtersPanel, ++filtrow, minThrottleLabelText);
         thrtlMinimumFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "minthrtl");
+        addDefaultButton("minthrtl");
     }
     
     protected void addEngineLoadMinimumFilter() {
@@ -532,7 +543,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where Engine Load is below the filter value");
         addLabel(filtersPanel, ++filtrow, minEngineLoadLabelText);
         minEngineLoadFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "minengload");
+        addDefaultButton("minengload");
     }
     
     protected void addManifoldPressureMaximumFilter() {
@@ -540,7 +551,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where Manifold Pressure is above the filter value");
         addLabel(filtersPanel, ++filtrow, maxManifoldPressureLabelText);
         maxMPFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "maxmp");
+        addDefaultButton("maxmp");
     }
     
     protected void addManifoldPressureMinimumFilter() {
@@ -548,7 +559,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where Manifold Pressure is below the filter value");
         addLabel(filtersPanel, ++filtrow, minManifoldPressureLabelText);
         minMPFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "minmp");
+        addDefaultButton("minmp");
     }
     
     protected void addCellHitCountMinimumFilter() {
@@ -556,15 +567,15 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Minimum cell hit count required to take data set for that cell into consideration");
         addLabel(filtersPanel, ++filtrow, minCellHitCountLabelText);
         minCellHitCountFilter = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "minhitcnt");
+        addDefaultButton("minhitcnt");
     }
     
     protected void addWOTStationaryPointFilter() {
         // WOT Stationary Point Note
         addNote(filtersPanel, ++filtrow, 3, "CL/OL transition. Use Throttle Angle % but could use Accel Pedal Angle % instead");
         addLabel(filtersPanel, ++filtrow, wotStationaryLabelText);
-        wotStationaryPointFilter = addSpinnerFilter(filtrow, Config.getWOTStationaryPointValue(), 50, 100, 5);
-        addDefaultButton(filtrow, "wotpoint");
+        wotStationaryPointFilter = addSpinnerFilter(filtrow, Config.getWOTStationaryPointValue(), 14, 100, 2);
+        addDefaultButton("wotpoint");
     }
     
     protected void addTemperatureScaleFilter() {
@@ -572,7 +583,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Temperature Scale used in logging (Celsius/Fahrenheit)");
         addLabel(filtersPanel, ++filtrow, temperatureScaleLabelText);
         temperatureScaleField = addComboBoxFilter(filtrow, new String [] { "F", "C" });
-        addDefaultButton(filtrow, "tempscale");
+        addDefaultButton("tempscale");
     }
     
     protected void addManifoldAbsolutePressureUnitFilter() {
@@ -580,7 +591,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Manifold Absolute Pressure unit used in logging (Bar/Psi/kPa)");
         addLabel(filtersPanel, ++filtrow, mapUnitLabelText);
         mapUnitField = addComboBoxFilter(filtrow, new String [] { "Psi", "Bar", "kPa" });
-        addDefaultButton(filtrow, "mapunit");
+        addDefaultButton("mapunit");
     }
     
     protected void addAFRErrorPctFilter() {
@@ -588,7 +599,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Remove data where AFR Error % exceeds desired change %");
         addLabel(filtersPanel, ++filtrow, afrErrorLabelText);
         afrErrorFilter = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "afrerr");
+        addDefaultButton("afrerr");
     }
     
     protected void addWOTEnrichmentMinimumFilter() {
@@ -596,7 +607,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Minimum Primary Open Loop Enrichment (Throttle) - WOT override for POL Fueling table. Set above 16 if you don't have this table");
         addLabel(filtersPanel, ++filtrow, minWOTEnrichmentLabelText);
         wotEnrichmentField = addTextFilter(filtrow, doubleFmt);
-        addDefaultButton(filtrow, "wotenrich");
+        addDefaultButton("wotenrich");
     }
     
     protected void addWideBandAFRRowOffsetFilter() {
@@ -604,7 +615,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Delay between the ECU readings and the wideband O2 reading. Eg if correct WBO2 for row 1 is on row 2 then offset is 1");
         addLabel(filtersPanel, ++filtrow, wbo2RowOffsetLabelText);
         wbo2RowOffsetField = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "wbo2offset");
+        addDefaultButton("wbo2offset");
     }
     
     protected void addOLCLTransitionSkipRowsFilter() {
@@ -612,7 +623,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Skip the first and last N rows on Open Loop / Closed Loop transition");
         addLabel(filtersPanel, ++filtrow, olClTransitionSkipRowsLabelText);
         olClTransitionSkipRowsField = addTextFilter(filtrow, intFmt);
-        addDefaultButton(filtrow, "olcltransit");
+        addDefaultButton("olcltransit");
     }
     
     protected void addCLOLStatusFilter() {
@@ -620,7 +631,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Filter out data using logged OL/CL status (EcuTek CL: 2, OL: 4, OP2/RR CL: 8, OL: 7, Cobb CL: 0 (on), OL: 1 (off))");
         addLabel(filtersPanel, ++filtrow, clolStatusValLabelText);
         clolStatusFilter = addSpinnerFilter(filtrow, Config.getClOlStatusValue(), -1, 10, 1);
-        addDefaultButton(filtrow, "clolstatus");
+        addDefaultButton("clolstatus");
     }
     
     protected void addCruiseStatusFilter() {
@@ -628,7 +639,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Filter out data using logged Cruise/Non-cruise status (leave at -1 if you ROM has only 1 Load Comp table)");
         addLabel(filtersPanel, ++filtrow, cruiseStatusValLabelText);
         cruiseStatusFilter = addSpinnerFilter(filtrow, Config.getCruiseStatusValue(), -1, 10, 1);
-        addDefaultButton(filtrow, "cruisestatus");
+        addDefaultButton("cruisestatus");
     }
     
     protected void addCorrectionAppliedValue() {
@@ -636,7 +647,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         addNote(filtersPanel, ++filtrow, 3, "Percent of correction to apply");
         addLabel(filtersPanel, ++filtrow, correctionAppliedValLabelText);
         correctionAppliedValue = addSpinnerFilter(filtrow, Config.getLCCorrectionAppliedValue(), 5, 100, 5);
-        addDefaultButton(filtrow, "corrapply");
+        addDefaultButton("corrapply");
     }
     
     protected void addLoadCompInRatioFlag() {
@@ -654,8 +665,8 @@ abstract class ColumnsFiltersSelection implements ActionListener {
     }
     
     protected boolean validate() {
-        boolean ret = true;
-        StringBuffer error = new StringBuffer("");
+        boolean ret;
+        StringBuffer error = new StringBuffer();
         ret = validate(error);        
         if (!ret)
             JOptionPane.showMessageDialog(null, error, "Error", JOptionPane.ERROR_MESSAGE);
@@ -773,7 +784,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
     }
 
     protected JComboBox<String> addComboBoxFilter(int row, String[] values) {
-        JComboBox<String> combo = new JComboBox<String>(values);
+        JComboBox<String> combo = new JComboBox<>(values);
         combo.setSelectedIndex(0);
         GridBagConstraints gbc_combo = new GridBagConstraints();
         gbc_combo.anchor = GridBagConstraints.WEST;
@@ -796,7 +807,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
         return flag;
     }
     
-    private void addDefaultButton(int row, String action) {
+    private void addDefaultButton(String action) {
         JButton button = new JButton("default");
         GridBagConstraints gbc_button = new GridBagConstraints();
         gbc_button.anchor = GridBagConstraints.WEST;
@@ -818,7 +829,7 @@ abstract class ColumnsFiltersSelection implements ActionListener {
             return;
         }
         String value = columnsTable.getValueAt(row, 0).toString();
-        JTextField textField = null;
+        JTextField textField;
         if ("thrtlAngle".equals(e.getActionCommand()))
             textField = thrtlAngleName;
         else if ("afrlearn".equals(e.getActionCommand()))
@@ -859,6 +870,8 @@ abstract class ColumnsFiltersSelection implements ActionListener {
             textField = vvt2Name;
         else if ("map".equals(e.getActionCommand()))
             textField = mapName;
+        else if ("clft".equals(e.getActionCommand()))
+            textField = clFuelTargetName;
         else
             return;
         textField.setText(value);

@@ -18,6 +18,10 @@
 
 package com.vgi.mafscaling;
 
+import com.vgi.mafscaling.closedloop.ClosedLoopJY;
+import com.vgi.mafscaling.loadcomp.LoadComp;
+import com.vgi.mafscaling.openloop.OpenLoopJY;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -32,13 +36,14 @@ import javax.swing.JTabbedPane;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 public class MafScaling {
     private static final Logger logger = Logger.getLogger(MafScaling.class);
-    private static final String Title = "MAF Scaling - v2.7.0";
-    private static final String OLTabName = "<html>Open Loop</html>";
-    private static final String CLTabName = "<html>Closed Loop</html>";
+    private static final String Title = "MAF Scaling JY";
+    private static final String OLJYTabName = "<html>Open Loop JY</html>";
+    private static final String CLJYTabName = "<html>Closed Loop JY</html>";
     private static final String MMTabName = "<html>MAF OL/CL Merge</html>";
     private static final String MRTabName = "<html>MAF Rescale</html>";
     private static final String TRTabName = "<html>Table Rescale</html>";
@@ -59,6 +64,8 @@ public class MafScaling {
      * @throws ClassNotFoundException 
      */
     public static void main(String[] args) throws Exception {
+        logger.setLevel(Level.ALL);
+
         //UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
         //UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
         //UIManager.setLookAndFeel("com.sun.java.swing.plaf.motif.MotifLookAndFeel");
@@ -121,13 +128,13 @@ public class MafScaling {
         tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         frame.getContentPane().add(tabbedPane, BorderLayout.CENTER);
         
-        JTabbedPane ol = new OpenLoop(JTabbedPane.LEFT, pofFuelingTable, mafCompare);
+        JTabbedPane ol = new OpenLoopJY(JTabbedPane.LEFT, pofFuelingTable, mafCompare);
         ol.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        tabbedPane.add(ol, OLTabName);
+        tabbedPane.add(ol, OLJYTabName);
 
-        JTabbedPane cl = new ClosedLoop(JTabbedPane.LEFT, pofFuelingTable, mafCompare);
+        JTabbedPane cl = new ClosedLoopJY(JTabbedPane.LEFT, pofFuelingTable, mafCompare);
         cl.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        tabbedPane.add(cl, CLTabName);
+        tabbedPane.add(cl, CLJYTabName);
 
         JTabbedPane mm = new MafOLCLMerge(JTabbedPane.LEFT);
         mm.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);

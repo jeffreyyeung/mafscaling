@@ -69,15 +69,24 @@ public class BgColorFormatRenderer extends DefaultTableCellRenderer {
 
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        setForeground(Color.BLACK);
         if (colors != null) {
-            if (row < colors.length && column < colors[0].length)
-                setBackground(colors[row][column]);
-            else
+            if (row < colors.length && column < colors[0].length) {
+                Color color = colors[row][column];
+                if (calculateLuminance(color.getRed(), color.getGreen(), color.getBlue()) < 100) {
+                    setForeground(Color.YELLOW);
+                }
+                setBackground(color);
+            } else {
                 setBackground(bgColor);
+            }
         }
         else
             setBackground(bgColor);
         return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column );
     }
 
+    private float calculateLuminance(int red, int green, int blue){
+        return (float) (0.2126*red + 0.7151*green + 0.0721*blue);
+    }
 }

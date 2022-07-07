@@ -1944,9 +1944,10 @@ public class LogView extends FCTabbedPane implements ActionListener {
                     continue;
                 if (line.charAt(line.length() - 1) == ',')
                     Arrays.copyOf(elements, elements.length - 1);
-                colNames = new ArrayList<String>(Arrays.asList(elements));                    
+                colNames = new ArrayList<String>(Arrays.asList(elements));
                 if (false == getColumnsFilters(colNames))
                     continue;
+                int af3VoltageColIdx = colNames.indexOf(Utils.AFSENS3VOLT);
                 DefaultMutableTreeNode fileNode = new DefaultMutableTreeNode("<html><u>" + file.getName() + "</u></html>");
                 ArrayList<HashMap<String, ArrayList<Double>>> pulls = new ArrayList<HashMap<String, ArrayList<Double>>>();
                 HashMap<String, ArrayList<Double>> pullData = new HashMap<String, ArrayList<Double>>();
@@ -1991,6 +1992,8 @@ public class LogView extends FCTabbedPane implements ActionListener {
                                 if (row == 0)
                                     Utils.resetBaseTime(flds[i]);
                                 columnData.add((double)Utils.parseTime(flds[i]));
+                            } else if (i == af3VoltageColIdx) {
+                                columnData.add(Utils.transformAemAfrVoltage(Double.parseDouble(flds[i])));
                             }
                             else
                                 columnData.add(Utils.parseValue(flds[i]));
